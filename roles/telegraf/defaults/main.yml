@@ -1,0 +1,31 @@
+# configuration variables for telegraf services
+telegraf:
+  user: telegraf
+  group: telegraf
+  config_file: /etc/telegraf/telegraf.conf
+  service_name: telegraf
+  config:
+    logs: /var/log/telegraf/telegraf.log
+    # files to monitor
+    monitor:
+      telegraf: /var/log/telegraf/telegraf.log
+      syslog: /var/log/messages
+      broker: /var/log/kafka/server.log
+    # must match the files being monitored
+    pattern:
+      telegraf: '^%{TIMESTAMP_ISO8601:timestamp:ts-rfc3339} %{TELEGRAF_LOG_LEVEL:level:tag}! %{GREEDYDATA:msg}'
+      syslog: '%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}'
+      broker: '\[%{TIMESTAMP_ISO8601:timestamp}\]%{SPACE}%{LOGLEVEL:level}%{SPACE}\[%{WORD}%{SPACE}%{DATA}\]%{SPACE}%{GREEDYDATA:message}'
+    custom_pattern: 'TELEGRAF_LOG_LEVEL (?:[DIWE]+)'
+  input_filters:
+    agent:
+      config:
+        # precision: 1ns
+        precision: 1s 
+  output_filters:
+    - kafka
+kafkabroker:
+  config:
+    # if this gets changed it needs to be changed under kafka defaults
+    port: '9092'
+    sslPort: '9091'
