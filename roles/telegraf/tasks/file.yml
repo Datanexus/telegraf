@@ -1,0 +1,23 @@
+# (c) Copyright 2018 DataNexus Inc.  All Rights Reserved.
+#
+#
+---
+- name: TELEGRAF OVERLAY (FILE) | enabling and configuring file output
+  blockinfile:
+    path: "{{ telegraf.config_file }}"
+    marker: "# datanexus file {mark} ANSIBLE MANAGED BLOCK"
+    insertafter: EOF
+    state: present
+    block: |
+      # Send telegraf metrics to file(s)
+      [[outputs.file]]
+        ## Files to write to, "stdout" is a specially handled file.
+        files = ["stdout", "/tmp/metrics.out"]
+
+        ## Data format to output.
+        ## Each data format has its own unique set of configuration options, read
+        ## more about them here:
+        ## https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_OUTPUT.md
+        data_format = "influx"
+  notify: restart telegraf
+  

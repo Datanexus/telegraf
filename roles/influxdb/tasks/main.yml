@@ -1,0 +1,21 @@
+# (c) Copyright 2018 DataNexus Inc.  All Rights Reserved.
+#
+#
+---
+# CentOS / Redhat 7
+- block:
+      
+  - name: INFLUX OVERLAY | configuring influxdb platform repo for CentOS / Redhat
+    template:
+      src: influxdb-repo.j2
+      dest: /etc/yum.repos.d/influxdb.repo
+      mode: 0644
+    
+  - name: INFLUX OVERLAY | installing telegraf-{{ influxdb_version }}
+    package:
+      name: "{{ influxdb_version }}"
+      state: present
+    notify: yum-clean-all
+        
+  become: yes
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'

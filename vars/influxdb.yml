@@ -1,0 +1,7 @@
+# (c) 2018 DataNexus Inc.  All Rights Reserved.
+---
+telegraf_version: '1.9.3'
+telegraf_os_releasever: '1'
+# user specified output override
+# output_filters:
+#   - file

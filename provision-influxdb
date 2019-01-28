@@ -1,0 +1,50 @@
+#!/usr/bin/env ansible-playbook
+# (c) 2018 DataNexus Inc.  All Rights Reserved.
+#
+# main routine for provisioning telegraf
+---
+- name: INFLUXDB OVERLAY | installing influxdb telegraf package 
+  hosts: shaw:zookeeper:kafka_broker:registry:controlcenter:kafka_connect:rest_proxy:kafka_ksql:kafka_replicator
+  tags:
+    - influxdb
+  vars_files:
+    - vars/influxdb.yml
+  gather_facts: yes
+  tasks:
+    - import_role:
+        name: influxdb
+      vars:
+        influxdb_version: "telegraf-{{ telegraf_version }}-{{ telegraf_os_releasever }}"
+
+# this is necessary before we build host groups from the ansible server
+- name: TELEGRAF OVERLAY | discovering kafka broker facts
+  tags:
+    - influxdb
+  hosts: kafka_broker
+  tasks:
+    - setup:
+
+- name: TELEGRAF OVERLAY | building kafka public internal host group
+  tags:
+    - influxdb
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: TELEGRAF OVERLAY | building kafka public internal host group
+      add_host: hostname="{{ hostvars[item].ansible_eth1.ipv4.address }}" groupname=kafka_public
+      with_items: "{{ groups['kafka_broker'] }}"
+      when: "'kafka_broker' in groups | default([])"
+      
+- name: TELEGRAF OVERLAY | configuring telegraf
+  hosts: shaw:zookeeper:kafka_broker:registry:controlcenter:kafka_connect:rest_proxy:kafka_ksql:kafka_replicator
+  tags:
+    - influxdb
+  vars:
+    # this is semi clever; application gets set based on each host group
+    application: "{{ group_names | first }}"
+  vars_files:
+    - vars/influxdb.yml
+  gather_facts: yes
+  tasks:
+    - import_role:
+        name: telegraf
