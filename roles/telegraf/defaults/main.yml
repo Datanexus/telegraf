@@ -6,6 +6,7 @@ telegraf:
   service_name: telegraf
   config:
     logs: /var/log/telegraf/telegraf.log
+    output_format: json
     # files to monitor
     monitor:
       telegraf: /var/log/telegraf/telegraf.log
