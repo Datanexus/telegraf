@@ -31,8 +31,9 @@
   hosts: localhost
   gather_facts: no
   tasks:
+    # assumption that the public internal interface is the default
     - name: TELEGRAF OVERLAY | building kafka public internal host group
-      add_host: hostname="{{ hostvars[item].ansible_eth1.ipv4.address }}" groupname=kafka_public
+      add_host: hostname="{{ hostvars[item].ansible_default_ipv4.address }}" groupname=kafka_public
       with_items: "{{ groups['kafka_broker'] }}"
       when: "'kafka_broker' in groups | default([])"
 
