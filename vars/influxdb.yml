@@ -2,6 +2,10 @@
 ---
 telegraf_version: '1.9.3'
 telegraf_os_releasever: '1'
+# we default to json for kafka, but can override here
+# output_format: influx
+
 # user specified output override
 # output_filters:
 #   - file
+
