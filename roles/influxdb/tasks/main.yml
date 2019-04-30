@@ -2,7 +2,6 @@
 #
 #
 ---
-# CentOS / Redhat 7
 - block:
       
   - name: INFLUX OVERLAY | configuring influxdb platform repo for CentOS / Redhat

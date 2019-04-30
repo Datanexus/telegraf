@@ -3,13 +3,23 @@
 #
 # main routine for provisioning telegraf
 ---
+# complete preflight for all host groups
+- name: KAFKA OVERLAY | completing preflight OS configuration
+  hosts: all:!kafka_public
+  tags:
+    - influxdb
+  gather_facts: yes
+  tasks:
+    - include_role:
+        name: preflight
+        
 # kafka_public doesn't really exists here -- just being consistent
 - name: INFLUXDB OVERLAY | installing influxdb telegraf package 
   hosts: all:!kafka_public
   tags:
     - influxdb
   vars_files:
-    - vars/influxdb.yml
+     - "{{ tenant_config_path }}/config/applications/telegraf.yml"
   gather_facts: yes
   tasks:
     - import_role:
@@ -45,8 +55,6 @@
   vars:
     # this is semi clever; application gets set based on each host group
     application: "{{ group_names | first }}"
-  vars_files:
-    - vars/influxdb.yml
   gather_facts: yes
   tasks:
     - import_role:
