@@ -1,0 +1,26 @@
+# (c) Copyright 2018 DataNexus Inc.  All Rights Reserved.
+#
+#
+---
+# RHEL6 needs package upgrades before we can install telegraf repo
+- block:
+  
+  - name: INFLUX OVERLAY | upgrading select default packages
+    package:
+      name: "{{ item }}"
+      state: latest
+    with_items:
+      - curl
+      - libcurl
+      - pyOpenSSL 
+      - ca-certificates 
+      - yum 
+      - nss
+      - nspr 
+      - python-rhsm
+    notify: yum-clean-all
+        
+  become: yes
+  when:
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+    - ansible_distribution_version is version_compare('7', '<')

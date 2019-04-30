@@ -238,10 +238,17 @@
   
 - block:
 
-  - name: TELEGRAF OVERLAY | starting {{ telegraf.service_name }}
+  - name: TELEGRAF OVERLAY | starting {{ telegraf.service_name }} by systemd
     systemd:
       name: "{{ telegraf.service_name }}"
       state: started
+    when: ansible_distribution_version is version_compare('7', '>=')
 
+  - name: TELEGRAF OVERLAY | starting {{ telegraf.service_name }} by sysvinit
+    sysvinit:
+      name: "{{ telegraf.service_name }}"
+      state: started
+    when: ansible_distribution_version is version_compare('7', '<')
+    
   become: yes
   when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
