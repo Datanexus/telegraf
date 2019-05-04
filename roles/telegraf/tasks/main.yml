@@ -1,4 +1,5 @@
-# (c) Copyright 2018 DataNexus Inc.  All Rights Reserved.
+# (c) 2016 DataNexus Inc.  All Rights Reserved.
+# Licensed software not for distribution
 #
 #
 ---
@@ -233,22 +234,35 @@
     - name: TELEGRAF OVERLAY | configuring outputs
       include_tasks: "{{ item}}.yml"
       with_items: "{{ output_filters | default(telegraf.output_filters) }}"
-
+      
   become: yes
+
+- block:
+  
+  - name: TELEGRAF OVERLAY | fixing telegraf kill signal in sysvinit for {{ ansible_distribution }}
+    lineinfile:
+      path: /etc/init.d/telegraf
+      regexp: '    kill \-s \$3 \$pid'
+      line: '    kill -9 $pid'
+  
+  become: yes 
+  when:
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+    - ansible_distribution_version is version_compare('7', '<')
   
 - block:
 
   - name: TELEGRAF OVERLAY | starting {{ telegraf.service_name }} by systemd
     systemd:
       name: "{{ telegraf.service_name }}"
-      state: started
+      enabled: yes
     when: ansible_distribution_version is version_compare('7', '>=')
 
   - name: TELEGRAF OVERLAY | starting {{ telegraf.service_name }} by sysvinit
     sysvinit:
       name: "{{ telegraf.service_name }}"
-      state: started
+      enabled: yes
     when: ansible_distribution_version is version_compare('7', '<')
-    
+
   become: yes
   when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
