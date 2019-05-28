@@ -2,7 +2,7 @@
 # Licensed software not for distribution
 #
 #
----
+---      
 - block:
   
     - name: TELEGRAF OVERLAY | configuring agent precision
@@ -19,11 +19,19 @@
         line: "  logfile = \"{{ telegraf.config.logs }}\""
       notify: restart telegraf
 
+    - name: TELEGRAF OVERLAY | ensuring log directory exists and is writable
+      file:
+        path: "{{ telegraf.config.logs | dirname }}"
+        state: directory
+        mode: 0755
+        owner: "{{ telegraf.user }}"
+        group: "{{ telegraf.group }}"
+        
     - name: TELEGRAF OVERLAY | ensuring log file exists and is readable
       file:
         path: "{{ telegraf.config.logs }}"
         state: touch
-        mode: 0644
+        mode: 0666
         owner: "{{ telegraf.user }}"
         group: "{{ telegraf.group }}"
         
@@ -94,13 +102,13 @@
               ##   3. UTC               -- or blank/unspecified, will return timestamp in UTC
               # timezone = "Canada/Eastern"
       notify: restart telegraf
-
-    - name: TELEGRAF OVERLAY | ensuring syslog log file is readable
-      file:
+    
+    - name: TELEGRAF OVERLAY | ensuring {{ telegraf.config.monitor.syslog }} file is readable (fatal errors are acceptable)
+      stat:
         path: "{{ telegraf.config.monitor.syslog }}"
-        state: touch
-        mode: 0644
-        
+      register: syslog_out
+      ignore_errors: yes
+
     - name: TELEGRAF OVERLAY | enabling and configuring syslog
       blockinfile:
         path: "{{ telegraf.config_file }}"
@@ -158,95 +166,110 @@
               ##   3. UTC               -- or blank/unspecified, will return timestamp in UTC
               # timezone = "Canada/Eastern"
       notify: restart telegraf
+      when:
+        - syslog_out.stat.readable
+        
+    - block:
+      
+      - name: TELEGRAF OVERLAY | ensuring {{ telegraf.config.monitor.broker | dirname }} file is readable
+        stat:
+          path: "{{ telegraf.config.monitor.broker | dirname }}"
+  
+      - name: TELEGRAF OVERLAY | ensuring {{ telegraf.config.monitor.broker }} file is readable
+        stat:
+          path: "{{ telegraf.config.monitor.broker }}"
+                
+      - name: TELEGRAF OVERLAY | enabling and configuring broker logs
+        blockinfile:
+          path: "{{ telegraf.config_file }}"
+          marker: "# datanexus broker log {mark} ANSIBLE MANAGED BLOCK"
+          insertafter: EOF
+          state: present
+          block: |
+            # Stream and parse log file(s).
+            [[inputs.logparser]]
+              ## Log files to parse.
+              ## These accept standard unix glob matching rules, but with the addition of
+              ## ** as a "super asterisk". ie:
+              ##   /var/log/**.log     -> recursively find all .log files in /var/log
+              ##   /var/log/*/*.log    -> find all .log files with a parent dir in /var/log
+              ##   /var/log/apache.log -> only tail the apache log file
+              files = ["{{ telegraf.config.monitor.broker }}"]
+
+              ## Read files that currently exist from the beginning. Files that are created
+              ## while telegraf is running (and that match the "files" globs) will always
+              ## be read from the beginning.
+              from_beginning = false
+
+              ## Method used to watch for file updates.  Can be either "inotify" or "poll".
+              watch_method = "inotify"
+
+              ## Parse logstash-style "grok" patterns:
+              [inputs.logparser.grok]
+                ## This is a list of patterns to check the given log file(s) for.
+                ## Note that adding patterns here increases processing time. The most
+                ## efficient configuration is to have one pattern per logparser.
+                ## Other common built-in patterns are:
+                ##   %{COMMON_LOG_FORMAT}   (plain apache & nginx access logs)
+                ##   %{COMBINED_LOG_FORMAT} (access logs + referrer & agent)
+                # patterns = ["%{COMBINED_LOG_FORMAT}"]
+                patterns = ['{{ telegraf.config.pattern.broker }}']
+
+                ## Name of the outputted measurement name.
+                measurement = "log"
+
+                ## Full path(s) to custom pattern files.
+                # custom_pattern_files = []
+
+                ## Custom patterns can also be defined here. Put one pattern per line.
+                # custom_patterns = '''
+                # '''
+
+                ## Timezone allows you to provide an override for timestamps that
+                ## don't already include an offset
+                ## e.g. 04/06/2016 12:41:45 data one two 5.43µs
+                ##
+                ## Default: "" which renders UTC
+                ## Options are as follows:
+                ##   1. Local             -- interpret based on machine localtime
+                ##   2. "Canada/Eastern"  -- Unix TZ values like those found in https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+                ##   3. UTC               -- or blank/unspecified, will return timestamp in UTC
+                # timezone = "Canada/Eastern"
+        notify: restart telegraf
+        
+      when: application == 'kafka_broker'
     
-    - name: TELEGRAF OVERLAY | ensuring broker log file is readable
-      file:
-        path: /var/log/kafka
-        state: directory
-        mode: 0755
-      when: application == 'kafka_broker'
-      
-    - name: TELEGRAF OVERLAY | ensuring broker log file is readable
-      file:
-        path: "{{ telegraf.config.monitor.broker }}"
-        mode: 0644
-      when: application == 'kafka_broker'
-      
-    - name: TELEGRAF OVERLAY | enabling and configuring broker logs
-      blockinfile:
-        path: "{{ telegraf.config_file }}"
-        marker: "# datanexus broker log {mark} ANSIBLE MANAGED BLOCK"
-        insertafter: EOF
-        state: present
-        block: |
-          # Stream and parse log file(s).
-          [[inputs.logparser]]
-            ## Log files to parse.
-            ## These accept standard unix glob matching rules, but with the addition of
-            ## ** as a "super asterisk". ie:
-            ##   /var/log/**.log     -> recursively find all .log files in /var/log
-            ##   /var/log/*/*.log    -> find all .log files with a parent dir in /var/log
-            ##   /var/log/apache.log -> only tail the apache log file
-            files = ["{{ telegraf.config.monitor.broker }}"]
-
-            ## Read files that currently exist from the beginning. Files that are created
-            ## while telegraf is running (and that match the "files" globs) will always
-            ## be read from the beginning.
-            from_beginning = false
-
-            ## Method used to watch for file updates.  Can be either "inotify" or "poll".
-            watch_method = "inotify"
-
-            ## Parse logstash-style "grok" patterns:
-            [inputs.logparser.grok]
-              ## This is a list of patterns to check the given log file(s) for.
-              ## Note that adding patterns here increases processing time. The most
-              ## efficient configuration is to have one pattern per logparser.
-              ## Other common built-in patterns are:
-              ##   %{COMMON_LOG_FORMAT}   (plain apache & nginx access logs)
-              ##   %{COMBINED_LOG_FORMAT} (access logs + referrer & agent)
-              # patterns = ["%{COMBINED_LOG_FORMAT}"]
-              patterns = ['{{ telegraf.config.pattern.broker }}']
-
-              ## Name of the outputted measurement name.
-              measurement = "log"
-
-              ## Full path(s) to custom pattern files.
-              # custom_pattern_files = []
-
-              ## Custom patterns can also be defined here. Put one pattern per line.
-              # custom_patterns = '''
-              # '''
-
-              ## Timezone allows you to provide an override for timestamps that
-              ## don't already include an offset
-              ## e.g. 04/06/2016 12:41:45 data one two 5.43µs
-              ##
-              ## Default: "" which renders UTC
-              ## Options are as follows:
-              ##   1. Local             -- interpret based on machine localtime
-              ##   2. "Canada/Eastern"  -- Unix TZ values like those found in https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-              ##   3. UTC               -- or blank/unspecified, will return timestamp in UTC
-              # timezone = "Canada/Eastern"
-      notify: restart telegraf
-      when: application == 'kafka_broker'
-      
+    # include output tasks when we have them
     - name: TELEGRAF OVERLAY | configuring outputs
       include_tasks: "{{ item}}.yml"
       with_items: "{{ output_filters | default(telegraf.output_filters) }}"
       
-  become: yes
-
+ # the thinking here is that these files are either restricted or not and that drives our escalation
+  become: "{{ got_root | default('yes') }}"
+  
 - block:
   
+  - name: INFLUX OVERLAY | updating {{ telegraf.config_file }} in sysvinit
+    lineinfile:
+      path: /etc/init.d/telegraf
+      regexp: 'config='
+      line: "config={{ telegraf.config_file }}"
+    
+  - name: INFLUX OVERLAY | updating {{ telegraf.config.logs }} in sysvinit
+    lineinfile:
+      path: /etc/init.d/telegraf
+      regexp: '    STDERR='
+      line: "    STDERR={{ telegraf.config.logs }}"
+      
   - name: TELEGRAF OVERLAY | fixing telegraf kill signal in sysvinit for {{ ansible_distribution }}
     lineinfile:
       path: /etc/init.d/telegraf
       regexp: '    kill \-s \$3 \$pid'
       line: '    kill -9 $pid'
   
-  become: yes 
+  become: yes
   when:
+    - got_root | default('yes')
     - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
     - ansible_distribution_version is version_compare('7', '<')
   
@@ -265,4 +288,6 @@
     when: ansible_distribution_version is version_compare('7', '<')
 
   become: yes
-  when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+  when:
+    - got_root | default('yes')
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
