@@ -3,6 +3,7 @@
 #
 # configuration variables for telegraf services
 telegraf:
+  enabled: "{{ telegraf_enabled | default('yes') }}"
   user: "{{ (got_root | default('yes')) | ternary('telegraf', ansible_user) }}"
   group: "{{ (got_root | default('yes')) | ternary('telegraf', ansible_user) }}"
   config_file: "{{ (got_root | default('yes')) | ternary('/etc/telegraf/telegraf.conf', (telegraf_config)) }}"
