@@ -1,4 +1,5 @@
-# (c) Copyright 2018 DataNexus Inc.  All Rights Reserved.
+# (c) 2016 DataNexus Inc.  All Rights Reserved.
+# Licensed software not for distribution
 #
 # handlers used during telegraf installation
 ---
@@ -6,4 +7,7 @@
   command: /usr/bin/yum clean all
   args:
       warn: no
-  become: true
+  become: yes
+  when:
+    - got_root | default('yes')
+    - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
