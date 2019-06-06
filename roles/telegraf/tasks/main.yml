@@ -2,7 +2,7 @@
 # Licensed software not for distribution
 #
 #
----      
+---    
 - block:
   
     - name: TELEGRAF OVERLAY | configuring agent precision
@@ -19,7 +19,7 @@
         line: "  logfile = \"{{ telegraf.config.logs }}\""
       notify: restart telegraf
 
-    - name: TELEGRAF OVERLAY | ensuring log directory exists and is writable
+    - name: TELEGRAF OVERLAY | ensuring log directory exists and is writable by {{ telegraf.user }}
       file:
         path: "{{ telegraf.config.logs | dirname }}"
         state: directory
@@ -27,7 +27,7 @@
         owner: "{{ telegraf.user }}"
         group: "{{ telegraf.group }}"
         
-    - name: TELEGRAF OVERLAY | ensuring log file exists and is readable
+    - name: TELEGRAF OVERLAY | ensuring log file exists and is readable by {{ telegraf.user }}
       file:
         path: "{{ telegraf.config.logs }}"
         state: touch
@@ -103,13 +103,12 @@
               # timezone = "Canada/Eastern"
       notify: restart telegraf
     
-    - name: TELEGRAF OVERLAY | ensuring {{ telegraf.config.monitor.syslog }} file is readable (fatal errors are acceptable)
-      stat:
+    - name: TELEGRAF OVERLAY | ensuring {{ telegraf.config.monitor.syslog }} file is readable by {{ telegraf.user }}
+      file:
         path: "{{ telegraf.config.monitor.syslog }}"
-      register: syslog_out
-      ignore_errors: yes
-
-    - name: TELEGRAF OVERLAY | enabling and configuring syslog
+        mode: 0644
+        
+    - name: TELEGRAF OVERLAY | enabling and configuring syslog input
       blockinfile:
         path: "{{ telegraf.config_file }}"
         marker: "# datanexus syslog {mark} ANSIBLE MANAGED BLOCK"
@@ -166,8 +165,6 @@
               ##   3. UTC               -- or blank/unspecified, will return timestamp in UTC
               # timezone = "Canada/Eastern"
       notify: restart telegraf
-      when:
-        - syslog_out.stat.readable
         
     - block:
       
