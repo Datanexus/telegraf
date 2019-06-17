@@ -6,7 +6,7 @@
 ---
 # complete preflight for all host groups
 - name: KAFKA OVERLAY | completing preflight OS configuration
-  hosts: all:!kafka_public:!controlcenter_broker:!broker_source:!broker_destination
+  hosts: all:!controlcenter_broker:!all_brokers
   tags:
     - influxdb
   vars_files:
@@ -21,7 +21,7 @@
         
 # kafka_public doesn't really exists here -- just being consistent
 - name: INFLUXDB OVERLAY | installing influxdb telegraf package 
-  hosts: all:!kafka_public:!controlcenter_broker:!broker_source:!broker_destination
+  hosts: all:!controlcenter_broker:!all_brokers
   tags:
     - influxdb
   vars_files:
@@ -56,7 +56,7 @@
 
 # kafka_public isn't a real group; don't install to it
 - name: TELEGRAF OVERLAY | configuring telegraf
-  hosts: all:!kafka_public:!controlcenter_broker:!broker_source:!broker_destination
+  hosts: all:!controlcenter_broker:!all_brokers:!kafka_public
   tags:
     - influxdb
   vars_files:
