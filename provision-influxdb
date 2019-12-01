@@ -5,7 +5,7 @@
 # main routine for provisioning telegraf
 ---
 # complete preflight for all host groups
-- name: KAFKA OVERLAY | completing preflight OS configuration
+- name: INFLUXDB OVERLAY | completing preflight OS configuration
   hosts: all:!controlcenter_broker:!all_brokers
   tags:
     - influxdb
@@ -42,18 +42,28 @@
   tasks:
     - setup:
 
-- name: TELEGRAF OVERLAY | building kafka public internal host group
+- name: TELEGRAF OVERLAY | building broker public internal host group
   tags:
     - influxdb
   hosts: localhost
   gather_facts: no
   tasks:
-    # assumption that the public internal interface is the default
-    - name: TELEGRAF OVERLAY | building kafka public internal host group
-      add_host: hostname="{{ hostvars[item].ansible_default_ipv4.address }}" groupname=kafka_public
+    # eth0 is the data plane in a single interface system
+    - name: TELEGRAF OVERLAY | building eth0 broker host group
+      add_host: hostname="{{ hostvars[item].ansible_eth0.ipv4.address }}" groupname=kafka_public
       with_items: "{{ groups['kafka_broker'] }}"
-      when: "'kafka_broker' in groups | default([])"
-
+      when:
+        - "'kafka_broker' in groups | default([])"
+        - hostvars[item].ansible_eth1 is not defined
+        
+    # eth1 is the dataplane in a multi interface system
+    - name: TELEGRAF OVERLAY | building eth1 broker host group
+      add_host: hostname="{{ hostvars[item].ansible_eth1.ipv4.address }}" groupname=kafka_public
+      with_items: "{{ groups['kafka_broker'] }}"
+      when:
+        - "'kafka_broker' in groups | default([])"
+        - hostvars[item].ansible_eth1 is defined
+        
 # kafka_public isn't a real group; don't install to it
 - name: TELEGRAF OVERLAY | configuring telegraf
   hosts: all:!controlcenter_broker:!all_brokers:!kafka_public
